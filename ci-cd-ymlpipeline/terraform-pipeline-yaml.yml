@@ -1,0 +1,78 @@
+trigger:
+  - main
+  # ****************************************** Variables to Edit **********************************
+#variables:
+  - ServiceConnectionaz: 'azureconnectionname'
+  - ServiceConnectionaws: 'awsconnectionname'
+  - group: Variable-Group-name
+  
+stages:  
+  - stage: Build
+    displayName: Terraform plan Stage 
+    jobs:
+    - deployment: 'Deploy'
+      environment: 'envformanualapprovals'
+    - job: Terraform_plan
+      displayName: 'Terraform Plan'
+      pool:
+        vmImage: 'windows-latest' 
+  
+      steps:
+      - task: TerraformInstaller@0
+        displayName: 'Install Terraform 0.12.4'
+        inputs:
+          terraformVersion: 0.12.4
+
+      - task: TerraformTaskV1@0
+        displayName: 'Terraform : AWS init'
+        inputs:
+          provider: 'aws'
+          command: init
+          workingDirectory: '$(Build.SourcesDirectory)\aws\account'
+          commandOptions: '-reconfigure'
+          backendServiceAWS: 'awsconnectionname'
+          backendAWSBucketName: 's3bucketname'
+          backendAWSKey: state.tfstate    
+
+      - task: TerraformTaskV1@0
+        displayName: Terraform validate Stage
+        inputs:
+          provider: 'azurerm'
+          command: 'validate'
+          workingDirectory: '$(Build.SourcesDirectory)\aws\account'
+
+      - task: TerraformTaskV1@0
+        displayName: 'Terraform : AWS plan'
+        inputs:
+          provider: aws
+          command: plan
+          workingDirectory: '$(Build.SourcesDirectory)\aws\account'
+          environmentServiceNameAWS: 'awsconnectionname'
+          backendServiceAWS: 'awsconnectionname'
+          backendAWSBucketName: 's3bucketname'
+          backendAWSKey: state.tfstate
+  - stage: deploy
+    displayName: Terraform apply Stage
+    jobs:
+    - deployment: 'Deploy'
+      environment: 'envformanualapprovals'
+    - job: Terraform_apply
+      displayName: 'Terraform Apply'
+      pool:
+        vmImage: 'windows-latest' 
+  
+      steps:
+      - task: TerraformInstaller@0
+        displayName: 'Install Terraform 0.12.4'
+        inputs:
+          terraformVersion: 0.12.4
+      - task: TerraformTaskV1@0
+        displayName: 'Terraform : AWS Apply (Prod)'
+        inputs:
+          provider: aws
+          command: apply
+          workingDirectory: '$(Build.SourcesDirectory)\aws\account'
+          environmentServiceNameAWS: 'awsconnectionname'
+          backendServiceAWS: 'awsconnectionname'
+          backendAWSBucketName: 's3bucketname'
+          backendAWSKey: state.tfstate
