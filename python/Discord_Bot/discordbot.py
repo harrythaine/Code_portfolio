@@ -1,10 +1,13 @@
-import discord
-from discord.ext import commands
+import hikari
 
-bot = commands.Bot(command_prefix='>')
+bot = hikari.GatewayBot(token='OTU0MzkxNjAyNTM1NzQ3NjU0.YjSccQ.X3AHEct62oWUOm1XPmVkYSG7cSg')
 
-@bot.command()
-async def ping(ctx):
-    await ctx.send('pong')
+@bot.listen(hikari.GuildMessageCreateEvent)
+async def print_message(event):
+    print(event.content)
 
-bot.run('token')
+@bot.listen(hikari.StartedEvent)
+async def bot_started(event):
+    print('Bot has started!')
+
+bot.run()
